@@ -81,6 +81,95 @@ function owesQuip(amount) {
   return 'We need to talk. Seriously. 🚨';
 }
 
+/* ─── UTILITIES ─────────────────────────────────────────── */
+function escHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatNum(num = 0) {
+  const val = Number(num) || 0;
+  return val.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function roundCurrency(num = 0) {
+  return Math.round((Number(num) || 0) * 100) / 100;
+}
+
+let totalBarEl = null;
+function ensureTotalBar() {
+  if (totalBarEl && totalBarEl.isConnected) return totalBarEl;
+  const section = document.getElementById('expenses-section');
+  if (!section) return null;
+  totalBarEl = section.querySelector('.total-bar');
+  if (!totalBarEl) {
+    totalBarEl = document.createElement('div');
+    totalBarEl.className = 'total-bar';
+    totalBarEl.innerHTML = `
+      <span class="total-label">total damage</span>
+      <span class="total-amount">₹0.00</span>
+    `;
+    section.appendChild(totalBarEl);
+  }
+  return totalBarEl;
+}
+
+function updateTotalBar(total = 0) {
+  const bar = ensureTotalBar();
+  if (!bar) return;
+  if (!total || total <= 0) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const amountEl = bar.querySelector('.total-amount');
+  if (amountEl) amountEl.textContent = `₹${formatNum(total)}`;
+}
+
+function summaryTimestamp() {
+  try {
+    return new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch (_) {
+    return new Date().toISOString();
+  }
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  const onSuccess = () => {
+    const toast = randomFrom(TOAST_COPIED);
+    showToast(toast.icon, toast.msg);
+  };
+  const onError = () => showToast('⚠️', 'Could not copy. Maybe just screenshot it.');
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(onError);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    onSuccess();
+  } catch (_) {
+    onError();
+  } finally {
+    textarea.remove();
+  }
+}
+
 /* ─── TOAST ──────────────────────────────────────────────── */
 function showToast(icon, msg) {
   const container = document.getElementById('toast-container');
@@ -329,6 +418,283 @@ function renderBalances() {
     `;
     list.appendChild(item);
   });
+}
+
+function calculateBalances() {
+  const balances = {};
+  state.friends.forEach(name => { balances[name] = 0; });
+
+  state.expenses.forEach(exp => {
+    const share = exp.amount / exp.participants.length;
+    exp.participants.forEach(part => {
+      balances[part] = roundCurrency((balances[part] || 0) - share);
+    });
+    balances[exp.payer] = roundCurrency((balances[exp.payer] || 0) + exp.amount);
+  });
+
+  const debtors = [];
+  const creditors = [];
+  Object.entries(balances).forEach(([name, amount]) => {
+    if (amount < -0.01) debtors.push({ name, amount: -amount });
+    else if (amount > 0.01) creditors.push({ name, amount });
+  });
+
+  debtors.sort((a, b) => b.amount - a.amount);
+  creditors.sort((a, b) => b.amount - a.amount);
+
+  const settlements = [];
+  while (debtors.length && creditors.length) {
+    const debtor = debtors[debtors.length - 1];
+    const creditor = creditors[creditors.length - 1];
+    const amount = roundCurrency(Math.min(debtor.amount, creditor.amount));
+    settlements.push({ from: debtor.name, to: creditor.name, amount });
+
+    debtor.amount = roundCurrency(debtor.amount - amount);
+    creditor.amount = roundCurrency(creditor.amount - amount);
+
+    if (debtor.amount <= 0.01) debtors.pop();
+    if (creditor.amount <= 0.01) creditors.pop();
+  }
+
+  return settlements;
+}
+
+function buildSummary(includeSettlements = true) {
+  const lines = [];
+  lines.push('SplitOrDie — Friends Edition');
+  lines.push(`Updated ${summaryTimestamp()}`);
+  lines.push('');
+
+  if (state.friends.length) {
+    lines.push(`Squad (${state.friends.length}): ${state.friends.join(', ')}`);
+  } else {
+    lines.push('No friends logged. Mysterious.');
+  }
+
+  const total = state.expenses.reduce((sum, e) => sum + e.amount, 0);
+  lines.push(`Total damage: ₹${formatNum(total)}`);
+
+  if (state.expenses.length === 0) {
+    lines.push('No expenses recorded. Yet.');
+  } else {
+    lines.push('');
+    lines.push('Expenses:');
+    state.expenses.slice().reverse().forEach(exp => {
+      const perHead = (exp.amount / exp.participants.length).toFixed(2);
+      lines.push(`• ${exp.desc} — ₹${formatNum(exp.amount)} | ${exp.payer} paid | ${exp.participants.length} ppl | ₹${perHead}/head`);
+    });
+  }
+
+  if (includeSettlements) {
+    const txns = calculateBalances();
+    lines.push('');
+    if (txns.length === 0) {
+      lines.push('Everyone is square. Miracles happen.');
+    } else {
+      lines.push('Who owes what:');
+      txns.forEach(t => {
+        lines.push(`• ${t.from} → ${t.to}: ₹${formatNum(t.amount)}`);
+      });
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function buildSettlementsSummary() {
+  const lines = [];
+  lines.push('SplitOrDie — Settle Up');
+  lines.push(`Updated ${summaryTimestamp()}`);
+  lines.push('');
+
+  const txns = calculateBalances();
+  if (txns.length === 0) {
+    lines.push('Everyone is square. Miracles happen.');
+  } else {
+    txns.forEach(t => {
+      lines.push(`${t.from} → ${t.to}: ₹${formatNum(t.amount)}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function renderSettleModal() {
+  const overlay = document.getElementById('settle-modal');
+  const body = document.getElementById('modal-body');
+  if (!overlay || !body) return;
+
+  const txns = calculateBalances();
+  body.innerHTML = '';
+
+  if (txns.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'modal-all-settled';
+    empty.textContent = 'Everyone is even. Go celebrate?';
+    body.appendChild(empty);
+  } else {
+    txns.forEach(txn => {
+      const item = document.createElement('div');
+      item.className = 'modal-settle-item';
+      item.innerHTML = `
+        <span class="modal-settle-emoji">${owesEmoji(txn.amount)}</span>
+        <div class="modal-settle-text">
+          <strong>${escHtml(txn.from)}</strong> should pay <strong>${escHtml(txn.to)}</strong>
+        </div>
+        <span class="modal-settle-amount">₹${formatNum(txn.amount)}</span>
+      `;
+      body.appendChild(item);
+    });
+  }
+
+  overlay.style.display = 'flex';
+}
+
+function closeSettleModal() {
+  const overlay = document.getElementById('settle-modal');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function openResetModal() {
+  const overlay = document.getElementById('reset-modal');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function closeResetModal() {
+  const overlay = document.getElementById('reset-modal');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function performReset() {
+  state = { friends: [], expenses: [] };
+  selectedParticipants.clear();
+  saveState();
+  renderFriends();
+  renderExpenses();
+  renderBalances();
+  const toast = randomFrom(TOAST_RESET);
+  showToast(toast.icon, toast.msg);
+  closeResetModal();
+}
+
+function handleSettleClick() {
+  if (state.expenses.length === 0) {
+    showToast('🫥', 'Log some chaos before settling anything.');
+    return;
+  }
+  renderSettleModal();
+}
+
+function handleExportSummary() {
+  const summary = buildSummary(true);
+  copyToClipboard(summary);
+}
+
+function handleModalCopy() {
+  const summary = buildSettlementsSummary();
+  copyToClipboard(summary);
+}
+
+function handleEscClose(e) {
+  if (e.key === 'Escape') {
+    closeSettleModal();
+    closeResetModal();
+  }
+}
+
+function handleStorageSync(e) {
+  if (e.key !== 'splitOrDie') return;
+  loadState();
+  renderFriends();
+  renderExpenses();
+  renderBalances();
+}
+
+function bindEvents() {
+  const addFriendBtn = document.getElementById('add-friend-btn');
+  if (addFriendBtn) addFriendBtn.addEventListener('click', addFriend);
+
+  const friendInput = document.getElementById('friend-input');
+  if (friendInput) {
+    friendInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addFriend();
+      }
+    });
+  }
+
+  const friendsList = document.getElementById('friends-list');
+  if (friendsList) {
+    friendsList.addEventListener('click', e => {
+      const btn = e.target.closest('.friend-chip-remove');
+      if (btn && btn.dataset.name) {
+        removeFriend(btn.dataset.name);
+      }
+    });
+  }
+
+  const addExpenseBtn = document.getElementById('add-expense-btn');
+  if (addExpenseBtn) addExpenseBtn.addEventListener('click', addExpense);
+
+  ['exp-desc', 'exp-amount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addExpense();
+      }
+    });
+  });
+
+  const expenseList = document.getElementById('expense-list');
+  if (expenseList) {
+    expenseList.addEventListener('click', e => {
+      const btn = e.target.closest('.expense-delete');
+      if (btn && btn.dataset.id) {
+        deleteExpense(Number(btn.dataset.id));
+      }
+    });
+  }
+
+  const settleBtn = document.getElementById('settle-btn');
+  if (settleBtn) settleBtn.addEventListener('click', handleSettleClick);
+
+  const modalClose = document.getElementById('modal-close');
+  if (modalClose) modalClose.addEventListener('click', closeSettleModal);
+
+  const settleOverlay = document.getElementById('settle-modal');
+  if (settleOverlay) {
+    settleOverlay.addEventListener('click', e => {
+      if (e.target === settleOverlay) closeSettleModal();
+    });
+  }
+
+  const modalCopyBtn = document.getElementById('modal-copy-btn');
+  if (modalCopyBtn) modalCopyBtn.addEventListener('click', handleModalCopy);
+
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) exportBtn.addEventListener('click', handleExportSummary);
+
+  const resetBtn = document.getElementById('reset-btn');
+  if (resetBtn) resetBtn.addEventListener('click', openResetModal);
+
+  const resetCancel = document.getElementById('reset-cancel');
+  if (resetCancel) resetCancel.addEventListener('click', closeResetModal);
+
+  const resetConfirm = document.getElementById('reset-confirm');
+  if (resetConfirm) resetConfirm.addEventListener('click', performReset);
+
+  const resetOverlay = document.getElementById('reset-modal');
+  if (resetOverlay) {
+    resetOverlay.addEventListener('click', e => {
+      if (e.target === resetOverlay) closeResetModal();
+    });
+  }
+
+  window.addEventListener('keydown', handleEscClose);
+  window.addEventListener('storage', handleStorageSync);
 }
 
 /* ─── INIT ───────────────────────────────────────────────── */
