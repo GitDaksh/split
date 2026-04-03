@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SplitOrDie — Friends Edition</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo-block">
+        <span class="logo-icon">💸</span>
+        <div>
+          <h1 class="logo-title">SplitOrDie</h1>
+          <p class="logo-sub">Friends Edition™ — because money ruins friendships anyway</p>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="reset-btn" title="Burn it all down">
+        <span>Reset</span>
+        <span class="btn-emoji">🔥</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- LEFT COLUMN -->
+    <div class="col col-left">
+
+      <!-- Add Friends -->
+      <section class="card" id="friends-section">
+        <div class="card-header">
+          <h2 class="card-title">The Squad</h2>
+          <span class="card-badge" id="friends-count">0 freeloaders</span>
+        </div>
+        <div class="input-row">
+          <input
+            type="text"
+            id="friend-input"
+            class="input"
+            placeholder="Add a freeloader's name…"
+            maxlength="24"
+            autocomplete="off"
+          />
+          <button class="btn btn-primary" id="add-friend-btn">Add</button>
+        </div>
+        <div class="chips-container" id="friends-list">
+          <div class="empty-state" id="friends-empty">
+            <span class="empty-icon">👀</span>
+            <p>No friends yet. Suspicious.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Add Expense -->
+      <section class="card" id="expense-section">
+        <div class="card-header">
+          <h2 class="card-title">Add Expense</h2>
+          <span class="card-badge">damage control</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="label" for="exp-desc">What was this for?</label>
+            <input type="text" id="exp-desc" class="input" placeholder="Pizza, booze, bad decisions…" maxlength="50" autocomplete="off" />
+          </div>
+
+          <div class="form-field">
+            <label class="label" for="exp-amount">Amount (₹)</label>
+            <input type="number" id="exp-amount" class="input" placeholder="0.00" min="0" step="0.01" />
+          </div>
+
+          <div class="form-field">
+            <label class="label" for="exp-payer">Who paid? (the hero 🦸)</label>
+            <select id="exp-payer" class="input select">
+              <option value="">— select the victim —</option>
+            </select>
+          </div>
+
+          <div class="form-field full-width">
+            <label class="label">Who's splitting? (the freeloaders)</label>
+            <div class="multi-select" id="participants-list">
+              <p class="select-hint">Add friends first, bestie.</p>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="add-expense-btn">
+          <span>Log this chaos</span>
+          <span>➕</span>
+        </button>
+      </section>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col col-right">
+
+      <!-- Expenses List -->
+      <section class="card" id="expenses-section">
+        <div class="card-header">
+          <h2 class="card-title">Expense Log</h2>
+          <span class="card-badge" id="expenses-count">0 regrets</span>
+        </div>
+        <div class="expense-list" id="expense-list">
+          <div class="empty-state" id="expenses-empty">
+            <span class="empty-icon">🕊️</span>
+            <p>No expenses yet.<br/>Suspiciously peaceful…</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Balances -->
+      <section class="card" id="balances-section">
+        <div class="card-header">
+          <h2 class="card-title">Who Owes What</h2>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" id="settle-btn">Settle Up 🤝</button>
+            <button class="btn btn-ghost btn-sm" id="export-btn">Copy Summary 📋</button>
+          </div>
+        </div>
+        <div class="balance-list" id="balance-list">
+          <div class="empty-state" id="balances-empty">
+            <span class="empty-icon">😇</span>
+            <p>Everyone's innocent for now.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Settle Up Modal -->
+  <div class="modal-overlay" id="settle-modal" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Final Verdict 🔨</h3>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="modal-copy-btn">Copy & Shame Them 📋</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Confirm Modal -->
+  <div class="modal-overlay" id="reset-modal" style="display:none;">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">☢️ Nuclear Option</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-warning">This will delete <strong>everything</strong>. Friends, expenses, debts — all gone. Your group chat will never recover.</p>
+        <p class="modal-warning-sub">Are you absolutely sure, you maniac?</p>
+      </div>
+      <div class="modal-footer modal-footer-row">
+        <button class="btn btn-ghost" id="reset-cancel">Nah, I'm sane</button>
+        <button class="btn btn-danger" id="reset-confirm">Burn it all 🔥</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
