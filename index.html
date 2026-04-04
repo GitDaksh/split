@@ -1,34 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SplitOrDie — Friends Edition</title>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-  <!-- Toast Container -->
   <div id="toast-container"></div>
 
-  <!-- Header -->
+  <!-- Keyboard Shortcuts Overlay -->
+  <div class="modal-overlay" id="shortcuts-modal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">⌨️ Shortcuts</h3>
+        <button class="modal-close" data-close="shortcuts-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-list">
+          <div class="shortcut-row"><kbd>N</kbd><span>New expense</span></div>
+          <div class="shortcut-row"><kbd>F</kbd><span>Add friend</span></div>
+          <div class="shortcut-row"><kbd>G</kbd><span>New group</span></div>
+          <div class="shortcut-row"><kbd>S</kbd><span>Settle up</span></div>
+          <div class="shortcut-row"><kbd>Z</kbd><span>Undo last action</span></div>
+          <div class="shortcut-row"><kbd>T</kbd><span>Toggle theme</span></div>
+          <div class="shortcut-row"><kbd>?</kbd><span>Show shortcuts</span></div>
+          <div class="shortcut-row"><kbd>Esc</kbd><span>Close modal</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Group Modal -->
+  <div class="modal-overlay" id="group-modal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="group-modal-title">New Group</h3>
+        <button class="modal-close" data-close="group-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label class="label">Group Name</label>
+          <input type="text" id="group-name-input" class="input" placeholder="Weekend Trip, Office Lunch…" maxlength="40" autocomplete="off"/>
+        </div>
+        <div class="form-field" style="margin-top:12px">
+          <label class="label">Emoji Icon</label>
+          <div class="emoji-picker" id="group-emoji-picker"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-full" id="group-modal-confirm">Create Group</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settle Up Modal -->
+  <div class="modal-overlay" id="settle-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Final Verdict 🔨</h3>
+        <button class="modal-close" data-close="settle-modal">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer modal-footer-row">
+        <button class="btn btn-ghost" id="whatsapp-btn">Share on WhatsApp 🟢</button>
+        <button class="btn btn-primary" id="modal-copy-btn">Copy & Shame 📋</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expense Detail / Notes Modal -->
+  <div class="modal-overlay" id="expense-detail-modal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="detail-modal-title">Expense Details</h3>
+        <button class="modal-close" data-close="expense-detail-modal">✕</button>
+      </div>
+      <div class="modal-body" id="detail-modal-body"></div>
+      <div class="modal-footer modal-footer-row">
+        <button class="btn btn-ghost" id="detail-delete-btn">Delete 🗑️</button>
+        <button class="btn btn-primary" id="detail-save-btn">Save Notes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Confirm Modal -->
+  <div class="modal-overlay" id="reset-modal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header"><h3 class="modal-title">☢️ Nuclear Option</h3></div>
+      <div class="modal-body">
+        <p class="modal-warning">This will delete <strong>everything in this group</strong>. Friends, expenses, debts — gone. Your group chat will never recover.</p>
+        <p class="modal-warning-sub">Are you absolutely sure, you maniac?</p>
+      </div>
+      <div class="modal-footer modal-footer-row">
+        <button class="btn btn-ghost" id="reset-cancel">Nah, I'm sane</button>
+        <button class="btn btn-danger" id="reset-confirm">Burn it all 🔥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HEADER ───────────────────────────────── -->
   <header class="header">
     <div class="header-inner">
       <div class="logo-block">
         <span class="logo-icon">💸</span>
         <div>
           <h1 class="logo-title">SplitOrDie</h1>
-          <p class="logo-sub">Friends Edition™ — because money ruins friendships anyway</p>
+          <p class="logo-sub">Friends Edition™ — money ruins friendships anyway</p>
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" id="reset-btn" title="Burn it all down">
-        <span>Reset</span>
-        <span class="btn-emoji">🔥</span>
-      </button>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" id="undo-btn" title="Undo (Z)" disabled>
+          <span class="undo-icon">↩</span><span class="undo-label">Undo</span>
+        </button>
+        <button class="btn btn-ghost btn-sm btn-icon" id="theme-btn" title="Toggle theme (T)">🌙</button>
+        <button class="btn btn-ghost btn-sm btn-icon" id="shortcuts-btn" title="Keyboard shortcuts (?)">⌨️</button>
+        <button class="btn btn-ghost btn-sm" id="reset-btn">Reset 🔥</button>
+      </div>
     </div>
   </header>
 
+  <!-- ── GROUP BAR ────────────────────────────── -->
+  <div class="group-bar">
+    <div class="group-bar-inner">
+      <div class="group-tabs" id="group-tabs"></div>
+      <button class="btn btn-ghost btn-sm new-group-btn" id="new-group-btn" title="New group (G)">+ New Group</button>
+    </div>
+  </div>
+
+  <!-- ── MAIN ─────────────────────────────────── -->
   <main class="main">
 
     <!-- LEFT COLUMN -->
@@ -41,14 +143,7 @@
           <span class="card-badge" id="friends-count">0 freeloaders</span>
         </div>
         <div class="input-row">
-          <input
-            type="text"
-            id="friend-input"
-            class="input"
-            placeholder="Add a freeloader's name…"
-            maxlength="24"
-            autocomplete="off"
-          />
+          <input type="text" id="friend-input" class="input" placeholder="Add a freeloader's name…" maxlength="24" autocomplete="off"/>
           <button class="btn btn-primary" id="add-friend-btn">Add</button>
         </div>
         <div class="chips-container" id="friends-list">
@@ -65,36 +160,48 @@
           <h2 class="card-title">Add Expense</h2>
           <span class="card-badge">damage control</span>
         </div>
-
         <div class="form-grid">
           <div class="form-field">
             <label class="label" for="exp-desc">What was this for?</label>
-            <input type="text" id="exp-desc" class="input" placeholder="Pizza, booze, bad decisions…" maxlength="50" autocomplete="off" />
+            <input type="text" id="exp-desc" class="input" placeholder="Pizza, booze, bad decisions…" maxlength="50" autocomplete="off"/>
           </div>
-
           <div class="form-field">
             <label class="label" for="exp-amount">Amount (₹)</label>
-            <input type="number" id="exp-amount" class="input" placeholder="0.00" min="0" step="0.01" />
+            <input type="number" id="exp-amount" class="input" placeholder="0.00" min="0" step="0.01"/>
           </div>
-
           <div class="form-field">
-            <label class="label" for="exp-payer">Who paid? (the hero 🦸)</label>
-            <select id="exp-payer" class="input select">
-              <option value="">— select the victim —</option>
-            </select>
+            <label class="label" for="exp-payer">Who paid? 🦸</label>
+            <select id="exp-payer" class="input select"><option value="">— select the victim —</option></select>
           </div>
-
+          <div class="form-field">
+            <label class="label" for="exp-date">Date</label>
+            <input type="date" id="exp-date" class="input"/>
+          </div>
           <div class="form-field full-width">
-            <label class="label">Who's splitting? (the freeloaders)</label>
+            <label class="label">Who's splitting?</label>
             <div class="multi-select" id="participants-list">
               <p class="select-hint">Add friends first, bestie.</p>
             </div>
           </div>
+          <div class="form-field full-width">
+            <label class="label" for="exp-notes">Notes <span class="label-optional">(optional)</span></label>
+            <textarea id="exp-notes" class="input textarea" placeholder="Any context, receipts info, drama…" rows="2" maxlength="300"></textarea>
+          </div>
+          <div class="form-field full-width">
+            <label class="label">Receipt Image <span class="label-optional">(optional)</span></label>
+            <label class="file-drop" id="file-drop-zone">
+              <input type="file" id="exp-image" accept="image/*" style="display:none"/>
+              <span class="file-drop-icon">📎</span>
+              <span class="file-drop-text" id="file-drop-text">Click to attach image</span>
+            </label>
+            <div id="image-preview-wrap" style="display:none">
+              <img id="image-preview" class="image-preview" alt="Receipt preview"/>
+              <button class="image-remove-btn" id="image-remove-btn">✕ Remove</button>
+            </div>
+          </div>
         </div>
-
         <button class="btn btn-primary btn-full" id="add-expense-btn">
-          <span>Log this chaos</span>
-          <span>➕</span>
+          Log this chaos ➕
         </button>
       </section>
 
@@ -121,9 +228,10 @@
       <section class="card" id="balances-section">
         <div class="card-header">
           <h2 class="card-title">Who Owes What</h2>
-          <div class="header-actions">
+          <div class="header-actions-inner">
             <button class="btn btn-ghost btn-sm" id="settle-btn">Settle Up 🤝</button>
-            <button class="btn btn-ghost btn-sm" id="export-btn">Copy Summary 📋</button>
+            <button class="btn btn-ghost btn-sm" id="export-btn">Copy 📋</button>
+            <button class="btn btn-ghost btn-sm" id="whatsapp-inline-btn">WhatsApp 🟢</button>
           </div>
         </div>
         <div class="balance-list" id="balance-list">
@@ -136,37 +244,6 @@
 
     </div>
   </main>
-
-  <!-- Settle Up Modal -->
-  <div class="modal-overlay" id="settle-modal" style="display:none;">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Final Verdict 🔨</h3>
-        <button class="modal-close" id="modal-close">✕</button>
-      </div>
-      <div class="modal-body" id="modal-body"></div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="modal-copy-btn">Copy & Shame Them 📋</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Reset Confirm Modal -->
-  <div class="modal-overlay" id="reset-modal" style="display:none;">
-    <div class="modal modal-sm">
-      <div class="modal-header">
-        <h3 class="modal-title">☢️ Nuclear Option</h3>
-      </div>
-      <div class="modal-body">
-        <p class="modal-warning">This will delete <strong>everything</strong>. Friends, expenses, debts — all gone. Your group chat will never recover.</p>
-        <p class="modal-warning-sub">Are you absolutely sure, you maniac?</p>
-      </div>
-      <div class="modal-footer modal-footer-row">
-        <button class="btn btn-ghost" id="reset-cancel">Nah, I'm sane</button>
-        <button class="btn btn-danger" id="reset-confirm">Burn it all 🔥</button>
-      </div>
-    </div>
-  </div>
 
   <script src="script.js"></script>
 </body>
