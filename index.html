@@ -1,250 +1,436 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SplitOrDie — Friends Edition</title>
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SplitOrDie</title>
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#0a0a0a"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <script>if(!localStorage.getItem('splitOrDie_session'))window.location.replace('auth.html');</script>
 </head>
 <body>
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
-  <!-- Keyboard Shortcuts Overlay -->
-  <div class="modal-overlay" id="shortcuts-modal" style="display:none">
-    <div class="modal modal-sm">
-      <div class="modal-header">
-        <h3 class="modal-title">⌨️ Shortcuts</h3>
-        <button class="modal-close" data-close="shortcuts-modal">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="shortcut-list">
-          <div class="shortcut-row"><kbd>N</kbd><span>New expense</span></div>
-          <div class="shortcut-row"><kbd>F</kbd><span>Add friend</span></div>
-          <div class="shortcut-row"><kbd>G</kbd><span>New group</span></div>
-          <div class="shortcut-row"><kbd>S</kbd><span>Settle up</span></div>
-          <div class="shortcut-row"><kbd>Z</kbd><span>Undo last action</span></div>
-          <div class="shortcut-row"><kbd>T</kbd><span>Toggle theme</span></div>
-          <div class="shortcut-row"><kbd>?</kbd><span>Show shortcuts</span></div>
-          <div class="shortcut-row"><kbd>Esc</kbd><span>Close modal</span></div>
+<!-- ═══════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════ -->
+
+<!-- New/Edit Group -->
+<div class="modal-overlay" id="m-group" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="m-group-title">New Group</h3>
+      <button class="modal-close" data-close="m-group">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">Name</label><input id="g-name" class="inp" placeholder="Weekend Trip, Goa 2025…" maxlength="40"/></div>
+      <div class="field mt12"><label class="lbl">Emoji</label><div class="emoji-grid" id="g-emoji-grid"></div></div>
+      <div class="field mt12"><label class="lbl">Currency</label><select id="g-currency" class="inp sel"></select></div>
+      <div class="field mt12"><label class="lbl">Budget <span class="lbl-opt">(optional)</span></label><input id="g-budget" class="inp" type="number" placeholder="5000" min="0"/></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary w100" id="m-group-save">Create Group</button></div>
+  </div>
+</div>
+
+<!-- Add/Edit Expense -->
+<div class="modal-overlay" id="m-expense" style="display:none">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="m-exp-title">Add Expense</h3>
+      <button class="modal-close" data-close="m-expense">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid2">
+        <div class="field"><label class="lbl">Description</label><input id="e-desc" class="inp" placeholder="Pizza, drinks, chaos…" maxlength="60"/></div>
+        <div class="field"><label class="lbl">Amount</label><div class="inp-prefix-wrap"><span class="inp-prefix" id="e-currency-sym">₹</span><input id="e-amount" class="inp inp-prefixed" type="number" placeholder="0.00" min="0" step="0.01"/></div></div>
+        <div class="field"><label class="lbl">Category</label><select id="e-category" class="inp sel"></select></div>
+        <div class="field"><label class="lbl">Paid by</label><select id="e-payer" class="inp sel"><option value="">— select —</option></select></div>
+        <div class="field"><label class="lbl">Date</label><input id="e-date" class="inp" type="date"/></div>
+        <div class="field"><label class="lbl">Split type</label>
+          <div class="split-tabs">
+            <button class="split-tab active" data-split="equal">⚖️ Equal</button>
+            <button class="split-tab" data-split="percent">% Percent</button>
+            <button class="split-tab" data-split="exact">✏️ Exact</button>
+          </div>
+        </div>
+        <div class="field span2"><label class="lbl">Participants <span class="lbl-opt" id="e-split-hint">(tap to select)</span></label><div class="chip-select" id="e-participants"></div></div>
+        <div class="field span2" id="e-split-inputs-wrap" style="display:none">
+          <label class="lbl" id="e-split-inputs-label">Custom split</label>
+          <div id="e-split-inputs"></div>
+          <div class="split-remaining" id="e-split-remaining"></div>
+        </div>
+        <div class="field span2"><label class="lbl">Recurring</label>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="e-recurring"/><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+            <span class="toggle-text">Repeat this expense</span>
+            <select id="e-recur-freq" class="inp sel" style="width:auto;margin-left:8px;display:none"><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option><option value="yearly">Yearly</option></select>
+          </div>
+        </div>
+        <div class="field span2"><label class="lbl">Notes <span class="lbl-opt">(optional)</span></label><textarea id="e-notes" class="inp textarea" rows="2" maxlength="300" placeholder="Context, drama, receipts…"></textarea></div>
+        <div class="field span2"><label class="lbl">Receipt <span class="lbl-opt">(optional)</span></label>
+          <label class="file-drop" id="e-drop-zone"><input type="file" id="e-image" accept="image/*" style="display:none"/><span>📎</span><span id="e-drop-text">Click or drag image</span></label>
+          <div id="e-img-preview-wrap" style="display:none"><img id="e-img-preview" class="img-preview"/><button class="img-remove" id="e-img-remove">✕ Remove</button></div>
         </div>
       </div>
     </div>
+    <div class="modal-footer row-end">
+      <button class="btn btn-ghost" data-close="m-expense">Cancel</button>
+      <button class="btn btn-primary" id="m-exp-save">Log Expense</button>
+    </div>
   </div>
+</div>
 
-  <!-- Add/Edit Group Modal -->
-  <div class="modal-overlay" id="group-modal" style="display:none">
-    <div class="modal modal-sm">
-      <div class="modal-header">
-        <h3 class="modal-title" id="group-modal-title">New Group</h3>
-        <button class="modal-close" data-close="group-modal">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-field">
-          <label class="label">Group Name</label>
-          <input type="text" id="group-name-input" class="input" placeholder="Weekend Trip, Office Lunch…" maxlength="40" autocomplete="off"/>
-        </div>
-        <div class="form-field" style="margin-top:12px">
-          <label class="label">Emoji Icon</label>
-          <div class="emoji-picker" id="group-emoji-picker"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary btn-full" id="group-modal-confirm">Create Group</button>
+<!-- Expense Detail -->
+<div class="modal-overlay" id="m-detail" style="display:none">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="m-detail-title">Expense</h3><button class="modal-close" data-close="m-detail">✕</button></div>
+    <div class="modal-body" id="m-detail-body"></div>
+    <div class="modal-footer row-end">
+      <button class="btn btn-ghost" id="m-detail-delete">Delete 🗑️</button>
+      <button class="btn btn-primary" id="m-detail-save">Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Settlement -->
+<div class="modal-overlay" id="m-settle" style="display:none">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title">Record Payment 💰</h3><button class="modal-close" data-close="m-settle">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">From (who paid)</label><select id="s-from" class="inp sel"></select></div>
+      <div class="field mt12"><label class="lbl">To (who received)</label><select id="s-to" class="inp sel"></select></div>
+      <div class="field mt12"><label class="lbl">Amount</label><input id="s-amount" class="inp" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+      <div class="field mt12"><label class="lbl">Note <span class="lbl-opt">(optional)</span></label><input id="s-note" class="inp" placeholder="UPI, cash, Venmo…" maxlength="60"/></div>
+    </div>
+    <div class="modal-footer row-end">
+      <button class="btn btn-ghost" data-close="m-settle">Cancel</button>
+      <button class="btn btn-primary" id="m-settle-save">Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Friend -->
+<div class="modal-overlay" id="m-friend" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title">Add Friend 👤</h3><button class="modal-close" data-close="m-friend">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="lbl">Name</label><input id="f-name" class="inp" placeholder="What do people call them?" maxlength="24"/></div>
+      <div class="field mt12"><label class="lbl">Pick avatar</label><div class="emoji-grid" id="f-avatar-grid"></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary w100" id="m-friend-save">Add to Squad</button></div>
+  </div>
+</div>
+
+<!-- Shortcuts -->
+<div class="modal-overlay" id="m-shortcuts" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title">⌨️ Shortcuts</h3><button class="modal-close" data-close="m-shortcuts">✕</button></div>
+    <div class="modal-body">
+      <div class="shortcut-grid">
+        <kbd>E</kbd><span>Add expense</span>
+        <kbd>G</kbd><span>New group</span>
+        <kbd>F</kbd><span>Add friend</span>
+        <kbd>S</kbd><span>Record settlement</span>
+        <kbd>Z</kbd><span>Undo</span>
+        <kbd>T</kbd><span>Toggle theme</span>
+        <kbd>/</kbd><span>Search</span>
+        <kbd>?</kbd><span>Shortcuts</span>
+        <kbd>Esc</kbd><span>Close modal</span>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Settle Up Modal -->
-  <div class="modal-overlay" id="settle-modal" style="display:none">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Final Verdict 🔨</h3>
-        <button class="modal-close" data-close="settle-modal">✕</button>
-      </div>
-      <div class="modal-body" id="modal-body"></div>
-      <div class="modal-footer modal-footer-row">
-        <button class="btn btn-ghost" id="whatsapp-btn">Share on WhatsApp 🟢</button>
-        <button class="btn btn-primary" id="modal-copy-btn">Copy & Shame 📋</button>
+<!-- Confirm Delete -->
+<div class="modal-overlay" id="m-confirm" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title" id="m-confirm-title">Are you sure?</h3></div>
+    <div class="modal-body"><p class="muted" id="m-confirm-msg"></p></div>
+    <div class="modal-footer row-end">
+      <button class="btn btn-ghost" data-close="m-confirm">Cancel</button>
+      <button class="btn btn-danger" id="m-confirm-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-overlay" id="m-export" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3 class="modal-title">Export Data 📤</h3><button class="modal-close" data-close="m-export">✕</button></div>
+    <div class="modal-body">
+      <p class="muted mb12">Choose export format for the current group's data.</p>
+      <div class="export-grid">
+        <button class="export-btn" id="exp-csv">📊<span>CSV</span><span class="exp-sub">Spreadsheet</span></button>
+        <button class="export-btn" id="exp-json">📦<span>JSON</span><span class="exp-sub">Full backup</span></button>
+        <button class="export-btn" id="exp-txt">📋<span>Text</span><span class="exp-sub">WhatsApp ready</span></button>
+        <button class="export-btn" id="exp-pdf">📄<span>PDF</span><span class="exp-sub">Print ready</span></button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Expense Detail / Notes Modal -->
-  <div class="modal-overlay" id="expense-detail-modal" style="display:none">
-    <div class="modal modal-sm">
-      <div class="modal-header">
-        <h3 class="modal-title" id="detail-modal-title">Expense Details</h3>
-        <button class="modal-close" data-close="expense-detail-modal">✕</button>
-      </div>
-      <div class="modal-body" id="detail-modal-body"></div>
-      <div class="modal-footer modal-footer-row">
-        <button class="btn btn-ghost" id="detail-delete-btn">Delete 🗑️</button>
-        <button class="btn btn-primary" id="detail-save-btn">Save Notes</button>
-      </div>
-    </div>
-  </div>
+<!-- ═══════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════ -->
 
-  <!-- Reset Confirm Modal -->
-  <div class="modal-overlay" id="reset-modal" style="display:none">
-    <div class="modal modal-sm">
-      <div class="modal-header"><h3 class="modal-title">☢️ Nuclear Option</h3></div>
-      <div class="modal-body">
-        <p class="modal-warning">This will delete <strong>everything in this group</strong>. Friends, expenses, debts — gone. Your group chat will never recover.</p>
-        <p class="modal-warning-sub">Are you absolutely sure, you maniac?</p>
-      </div>
-      <div class="modal-footer modal-footer-row">
-        <button class="btn btn-ghost" id="reset-cancel">Nah, I'm sane</button>
-        <button class="btn btn-danger" id="reset-confirm">Burn it all 🔥</button>
-      </div>
-    </div>
-  </div>
+<div class="app-shell">
 
-  <!-- ── HEADER ───────────────────────────────── -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo-block">
-        <span class="logo-icon">💸</span>
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">
+        <span class="brand-icon">💸</span>
         <div>
-          <h1 class="logo-title">SplitOrDie</h1>
-          <p class="logo-sub">Friends Edition™ — money ruins friendships anyway</p>
+          <div class="brand-name">SplitOrDie</div>
+          <div class="brand-sub">Friends Edition™</div>
         </div>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" id="undo-btn" title="Undo (Z)" disabled>
-          <span class="undo-icon">↩</span><span class="undo-label">Undo</span>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
         </button>
-        <button class="btn btn-ghost btn-sm btn-icon" id="theme-btn" title="Toggle theme (T)">🌙</button>
-        <button class="btn btn-ghost btn-sm btn-icon" id="shortcuts-btn" title="Keyboard shortcuts (?)">⌨️</button>
-        <button class="btn btn-ghost btn-sm" id="reset-btn">Reset 🔥</button>
-      </div>
+        <button class="nav-item" data-page="groups">
+          <span class="nav-icon">👥</span><span class="nav-label">Groups</span>
+        </button>
+        <button class="nav-item" data-page="analytics">
+          <span class="nav-icon">📈</span><span class="nav-label">Analytics</span>
+        </button>
+        <button class="nav-item" data-page="settlements">
+          <span class="nav-icon">🤝</span><span class="nav-label">Settlements</span>
+        </button>
+        <button class="nav-item" data-page="friends">
+          <span class="nav-icon">🧑‍🤝‍🧑</span><span class="nav-label">Friends</span>
+        </button>
+        <button class="nav-item" data-page="history">
+          <span class="nav-icon">🗂️</span><span class="nav-label">History</span>
+        </button>
+        <button class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+        </button>
+      </nav>
     </div>
-  </header>
+    <div class="sidebar-bottom">
+      <button class="nav-item" id="undo-btn" disabled><span class="nav-icon">↩</span><span class="nav-label">Undo</span></button>
+      <a href="profile.html" class="nav-item"><span class="nav-icon" id="sidebar-avatar">😎</span><span class="nav-label" id="sidebar-name">Profile</span></a>
+    </div>
+  </aside>
 
-  <!-- ── GROUP BAR ────────────────────────────── -->
-  <div class="group-bar">
-    <div class="group-bar-inner">
-      <div class="group-tabs" id="group-tabs"></div>
-      <button class="btn btn-ghost btn-sm new-group-btn" id="new-group-btn" title="New group (G)">+ New Group</button>
-    </div>
+  <!-- MAIN CONTENT -->
+  <div class="main-wrap">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <button class="topbar-menu" id="sidebar-toggle">☰</button>
+      <div class="topbar-center">
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input class="search-inp" id="global-search" placeholder="Search expenses, friends, groups…"/>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="theme-btn" title="Toggle theme (T)">🌙</button>
+        <button class="icon-btn" id="shortcuts-btn" title="Shortcuts (?)">⌨️</button>
+        <button class="btn btn-primary btn-sm" id="quick-add-btn">+ Add Expense</button>
+      </div>
+    </header>
+
+    <!-- PAGE CONTAINER -->
+    <main class="page-wrap">
+
+      <!-- ─── DASHBOARD ─────────────────── -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title" id="dash-greeting">Good morning 👋</h1>
+            <p class="page-sub">Here's what's happening across your groups</p>
+          </div>
+          <button class="btn btn-primary" id="dash-new-group-btn">+ New Group</button>
+        </div>
+
+        <!-- Global stat cards -->
+        <div class="stat-grid" id="dash-stats"></div>
+
+        <!-- Active group picker -->
+        <div class="section-header">
+          <h2 class="section-title">Active Group</h2>
+          <select class="inp sel inp-sm" id="dash-group-select"></select>
+        </div>
+
+        <!-- Budget bar -->
+        <div id="dash-budget-wrap" style="display:none">
+          <div class="budget-bar-card" id="dash-budget-card">
+            <div class="budget-bar-top">
+              <span id="dash-budget-label">Budget</span>
+              <span id="dash-budget-pct" class="budget-pct">0%</span>
+            </div>
+            <div class="budget-track"><div class="budget-fill" id="dash-budget-fill"></div></div>
+            <div class="budget-sub" id="dash-budget-sub"></div>
+          </div>
+        </div>
+
+        <div class="dash-cols">
+          <div class="dash-col">
+            <!-- Quick add friends -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">Squad</span><button class="btn btn-ghost btn-xs" id="dash-add-friend-btn">+ Add</button></div>
+              <div class="friend-chips" id="dash-friends"></div>
+            </div>
+            <!-- Balances -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">Balances</span>
+                <div class="row-gap6">
+                  <button class="btn btn-ghost btn-xs" id="dash-whatsapp-btn">🟢</button>
+                  <button class="btn btn-ghost btn-xs" id="dash-copy-btn">📋</button>
+                  <button class="btn btn-primary btn-xs" id="dash-settle-btn">Settle Up</button>
+                </div>
+              </div>
+              <div id="dash-balances"></div>
+            </div>
+          </div>
+          <div class="dash-col">
+            <!-- Recent expenses -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">Recent Expenses</span><button class="btn btn-ghost btn-xs" data-page="groups">See all →</button></div>
+              <div id="dash-recent-expenses"></div>
+            </div>
+            <!-- Activity feed -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">Activity</span><button class="btn btn-ghost btn-xs" id="dash-clear-activity">Clear</button></div>
+              <div id="dash-activity"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── GROUPS ────────────────────── -->
+      <section class="page" id="page-groups">
+        <div class="page-header">
+          <div><h1 class="page-title">Groups</h1><p class="page-sub">Manage your expense groups</p></div>
+          <button class="btn btn-primary" id="groups-new-btn">+ New Group</button>
+        </div>
+        <!-- Group tabs -->
+        <div class="group-tab-bar" id="groups-tab-bar"></div>
+        <!-- Group detail panel -->
+        <div id="group-detail-panel"></div>
+      </section>
+
+      <!-- ─── ANALYTICS ─────────────────── -->
+      <section class="page" id="page-analytics">
+        <div class="page-header">
+          <div><h1 class="page-title">Analytics</h1><p class="page-sub">Spending trends & insights</p></div>
+          <select class="inp sel inp-sm" id="analytics-group-sel"></select>
+        </div>
+        <div class="analytics-grid" id="analytics-content"></div>
+      </section>
+
+      <!-- ─── SETTLEMENTS ───────────────── -->
+      <section class="page" id="page-settlements">
+        <div class="page-header">
+          <div><h1 class="page-title">Settlements</h1><p class="page-sub">Track who paid back whom</p></div>
+          <div class="row-gap8">
+            <select class="inp sel inp-sm" id="settle-group-sel"></select>
+            <button class="btn btn-primary" id="settle-record-btn">+ Record Payment</button>
+          </div>
+        </div>
+        <div class="settle-cols">
+          <div>
+            <h3 class="section-title mb12">Outstanding Debts</h3>
+            <div id="settle-debts"></div>
+          </div>
+          <div>
+            <h3 class="section-title mb12">Payment History</h3>
+            <div id="settle-history"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── FRIENDS ───────────────────── -->
+      <section class="page" id="page-friends">
+        <div class="page-header">
+          <div><h1 class="page-title">Friends</h1><p class="page-sub">Everyone across all your groups</p></div>
+          <button class="btn btn-primary" id="friends-add-btn">+ Add Friend</button>
+        </div>
+        <div class="search-bar-row">
+          <div class="search-wrap" style="max-width:320px">
+            <span class="search-ico">🔍</span>
+            <input class="search-inp" id="friends-search" placeholder="Search friends…"/>
+          </div>
+        </div>
+        <div class="friends-grid" id="friends-grid"></div>
+      </section>
+
+      <!-- ─── HISTORY ───────────────────── -->
+      <section class="page" id="page-history">
+        <div class="page-header">
+          <div><h1 class="page-title">History</h1><p class="page-sub">Archived & settled groups</p></div>
+        </div>
+        <div class="history-tabs">
+          <button class="htab active" data-htab="activity">All Activity</button>
+          <button class="htab" data-htab="archived">Archived Groups</button>
+          <button class="htab" data-htab="recurring">Recurring</button>
+        </div>
+        <div id="history-content"></div>
+      </section>
+
+      <!-- ─── SETTINGS ──────────────────── -->
+      <section class="page" id="page-settings">
+        <div class="page-header">
+          <div><h1 class="page-title">Settings</h1><p class="page-sub">Preferences & data management</p></div>
+        </div>
+        <div class="settings-grid">
+          <div class="card settings-section">
+            <h3 class="settings-section-title">Appearance</h3>
+            <div class="setting-row"><div><div class="setting-label">Theme</div><div class="setting-sub">Dark or light mode</div></div><div class="toggle-group" id="theme-toggle-group"><button class="theme-opt active" data-th="dark">🌙 Dark</button><button class="theme-opt" data-th="light">☀️ Light</button></div></div>
+            <div class="setting-row"><div><div class="setting-label">Default Currency</div><div class="setting-sub">Used for new groups</div></div><select class="inp sel inp-sm" id="set-currency"></select></div>
+          </div>
+          <div class="card settings-section">
+            <h3 class="settings-section-title">Custom Categories</h3>
+            <div class="cat-add-row"><input id="set-cat-emoji" class="inp" placeholder="🏷️" maxlength="2" style="width:56px;text-align:center"/><input id="set-cat-name" class="inp" placeholder="Category name" maxlength="20"/><button class="btn btn-primary btn-sm" id="set-cat-add">Add</button></div>
+            <div id="set-cat-list" class="cat-list mt12"></div>
+          </div>
+          <div class="card settings-section">
+            <h3 class="settings-section-title">Data & Export</h3>
+            <div class="data-actions">
+              <button class="data-action-btn" id="set-export-btn"><span>📤</span><span>Export Data</span></button>
+              <button class="data-action-btn" id="set-import-btn"><span>📥</span><span>Import JSON</span><input type="file" id="set-import-file" accept=".json" style="display:none"/></button>
+              <button class="data-action-btn" id="set-export-all-csv"><span>📊</span><span>Export CSV</span></button>
+              <button class="data-action-btn danger" id="set-reset-all"><span>🔥</span><span>Reset All</span></button>
+            </div>
+          </div>
+          <div class="card settings-section">
+            <h3 class="settings-section-title">Notifications</h3>
+            <div class="setting-row"><div><div class="setting-label">Browser Notifications</div><div class="setting-sub">Budget alerts & reminders</div></div><button class="btn btn-ghost btn-sm" id="set-notif-btn">Enable</button></div>
+          </div>
+          <div class="card settings-section">
+            <h3 class="settings-section-title">About</h3>
+            <div class="about-card">
+              <div class="about-logo">💸</div>
+              <div class="about-name">SplitOrDie</div>
+              <div class="about-ver">v4.0 · Friends Edition™</div>
+              <div class="about-desc">Split bills without splitting friendships. Built with ❤️ and localStorage.</div>
+              <a href="landing.html" class="btn btn-ghost btn-sm mt12">View Landing Page →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- ── MAIN ─────────────────────────────────── -->
-  <main class="main">
+  <!-- BOTTOM NAV (mobile) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bnav-item active" data-page="dashboard"><span>📊</span><span>Home</span></button>
+    <button class="bnav-item" data-page="groups"><span>👥</span><span>Groups</span></button>
+    <button class="bnav-item bnav-add" id="bnav-add-btn"><span>＋</span></button>
+    <button class="bnav-item" data-page="settlements"><span>🤝</span><span>Settle</span></button>
+    <button class="bnav-item" data-page="settings"><span>⚙️</span><span>Settings</span></button>
+  </nav>
 
-    <!-- LEFT COLUMN -->
-    <div class="col col-left">
+</div><!-- end app-shell -->
 
-      <!-- Add Friends -->
-      <section class="card" id="friends-section">
-        <div class="card-header">
-          <h2 class="card-title">The Squad</h2>
-          <span class="card-badge" id="friends-count">0 freeloaders</span>
-        </div>
-        <div class="input-row">
-          <input type="text" id="friend-input" class="input" placeholder="Add a freeloader's name…" maxlength="24" autocomplete="off"/>
-          <button class="btn btn-primary" id="add-friend-btn">Add</button>
-        </div>
-        <div class="chips-container" id="friends-list">
-          <div class="empty-state" id="friends-empty">
-            <span class="empty-icon">👀</span>
-            <p>No friends yet. Suspicious.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Add Expense -->
-      <section class="card" id="expense-section">
-        <div class="card-header">
-          <h2 class="card-title">Add Expense</h2>
-          <span class="card-badge">damage control</span>
-        </div>
-        <div class="form-grid">
-          <div class="form-field">
-            <label class="label" for="exp-desc">What was this for?</label>
-            <input type="text" id="exp-desc" class="input" placeholder="Pizza, booze, bad decisions…" maxlength="50" autocomplete="off"/>
-          </div>
-          <div class="form-field">
-            <label class="label" for="exp-amount">Amount (₹)</label>
-            <input type="number" id="exp-amount" class="input" placeholder="0.00" min="0" step="0.01"/>
-          </div>
-          <div class="form-field">
-            <label class="label" for="exp-payer">Who paid? 🦸</label>
-            <select id="exp-payer" class="input select"><option value="">— select the victim —</option></select>
-          </div>
-          <div class="form-field">
-            <label class="label" for="exp-date">Date</label>
-            <input type="date" id="exp-date" class="input"/>
-          </div>
-          <div class="form-field full-width">
-            <label class="label">Who's splitting?</label>
-            <div class="multi-select" id="participants-list">
-              <p class="select-hint">Add friends first, bestie.</p>
-            </div>
-          </div>
-          <div class="form-field full-width">
-            <label class="label" for="exp-notes">Notes <span class="label-optional">(optional)</span></label>
-            <textarea id="exp-notes" class="input textarea" placeholder="Any context, receipts info, drama…" rows="2" maxlength="300"></textarea>
-          </div>
-          <div class="form-field full-width">
-            <label class="label">Receipt Image <span class="label-optional">(optional)</span></label>
-            <label class="file-drop" id="file-drop-zone">
-              <input type="file" id="exp-image" accept="image/*" style="display:none"/>
-              <span class="file-drop-icon">📎</span>
-              <span class="file-drop-text" id="file-drop-text">Click to attach image</span>
-            </label>
-            <div id="image-preview-wrap" style="display:none">
-              <img id="image-preview" class="image-preview" alt="Receipt preview"/>
-              <button class="image-remove-btn" id="image-remove-btn">✕ Remove</button>
-            </div>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-full" id="add-expense-btn">
-          Log this chaos ➕
-        </button>
-      </section>
-
-    </div>
-
-    <!-- RIGHT COLUMN -->
-    <div class="col col-right">
-
-      <!-- Expenses List -->
-      <section class="card" id="expenses-section">
-        <div class="card-header">
-          <h2 class="card-title">Expense Log</h2>
-          <span class="card-badge" id="expenses-count">0 regrets</span>
-        </div>
-        <div class="expense-list" id="expense-list">
-          <div class="empty-state" id="expenses-empty">
-            <span class="empty-icon">🕊️</span>
-            <p>No expenses yet.<br/>Suspiciously peaceful…</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Balances -->
-      <section class="card" id="balances-section">
-        <div class="card-header">
-          <h2 class="card-title">Who Owes What</h2>
-          <div class="header-actions-inner">
-            <button class="btn btn-ghost btn-sm" id="settle-btn">Settle Up 🤝</button>
-            <button class="btn btn-ghost btn-sm" id="export-btn">Copy 📋</button>
-            <button class="btn btn-ghost btn-sm" id="whatsapp-inline-btn">WhatsApp 🟢</button>
-          </div>
-        </div>
-        <div class="balance-list" id="balance-list">
-          <div class="empty-state" id="balances-empty">
-            <span class="empty-icon">😇</span>
-            <p>Everyone's innocent for now.</p>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  </main>
-
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
